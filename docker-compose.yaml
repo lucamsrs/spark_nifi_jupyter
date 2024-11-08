@@ -15,7 +15,6 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      #KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -40,12 +39,9 @@ services:
       - "7077:7077"  # Spark Master port
     volumes:
       - spark_master_data:/bitnami/spark
-      - /home/lucams/dev/spark_nifi_jupiter/scripts:/opt/spark/scripts
+      - ${SCRIPTS_PATH}:/opt/spark/scripts
      
-    
-
   spark-worker:
-    #image: bitnami/spark:latest
     build:
       context: ./docker
       dockerfile: Dockerfile-spark
@@ -68,7 +64,7 @@ services:
       - kafka
     volumes:
       - spark_worker_data:/bitnami/spark
-      - /home/lucams/dev/spark_nifi_jupiter/scripts:/opt/spark/scripts
+      - ${SCRIPTS_PATH}:/opt/spark/scripts
       
   nifi:
     image: apache/nifi:latest
@@ -79,7 +75,7 @@ services:
     environment:
       - NIFI_WEB_PROXY_HOST=localhost 
     volumes:
-      - /home/lucams/dev/spark_nifi_jupiter/data/nifi:/opt/nifi/nifi-current/data
+      - ${NIFI_DATA_PATH}:/opt/nifi/nifi-current/data
     depends_on:
       - kafka
 
@@ -98,9 +94,7 @@ services:
       - spark-worker
       - kafka
     volumes:
-      - /home/lucams/dev/spark_nifi_jupiter/data/jupyter:/home/jovyan/work
-      #- /home/lucams/dev/spark_nifi_jupiter/libs:/home/jovyan/work/jars
-
+      - ${JUPYTER_DATA_PATH}:/home/jovyan/work
 
   postgres:
     image: postgres:13
@@ -112,7 +106,7 @@ services:
       POSTGRES_PASSWORD: nifi_password
       POSTGRES_DB: nifi_db
     volumes:
-      - /home/lucams/dev/spark_nifi_jupiter/data/postgres:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
 
 volumes:
   spark_worker_data:
