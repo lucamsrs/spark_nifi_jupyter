@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper:3.4.6
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka:2.12-2.5.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      #KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  spark-master:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile-spark
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_EXTRA_CLASSPATH=/opt/bitnami/spark/jars/*
+    ports:
+      - "8080:8080"  # Spark UI
+      - "7077:7077"  # Spark Master port
+    volumes:
+      - spark_master_data:/bitnami/spark
+      - /home/lucams/dev/spark_nifi_jupiter/scripts:/opt/spark/scripts
+     
+    
+
+  spark-worker:
+    #image: bitnami/spark:latest
+    build:
+      context: ./docker
+      dockerfile: Dockerfile-spark
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_EXTRA_CLASSPATH=/opt/bitnami/spark/jars/*
+    ports:
+      - "8081:8081"  # Spark Worker UI
+    depends_on:
+      - spark-master
+      - zookeeper
+      - kafka
+    volumes:
+      - spark_worker_data:/bitnami/spark
+      - /home/lucams/dev/spark_nifi_jupiter/scripts:/opt/spark/scripts
+      
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    ports:
+      - "8082:8080"  # HTTP (Opcional)
+      - "8443:8443"  # HTTPS
+    environment:
+      - NIFI_WEB_PROXY_HOST=localhost 
+    volumes:
+      - /home/lucams/dev/spark_nifi_jupiter/data/nifi:/opt/nifi/nifi-current/data
+    depends_on:
+      - kafka
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=jupyter
+      - PYSPARK_DRIVER_PYTHON_OPTS=notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''
+      - SPARK_EXTRA_CLASSPATH=/home/jovyan/work/jars/*
+    depends_on:
+      - spark-master
+      - spark-worker
+      - kafka
+    volumes:
+      - /home/lucams/dev/spark_nifi_jupiter/data/jupyter:/home/jovyan/work
+      #- /home/lucams/dev/spark_nifi_jupiter/libs:/home/jovyan/work/jars
+
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nifi_user
+      POSTGRES_PASSWORD: nifi_password
+      POSTGRES_DB: nifi_db
+    volumes:
+      - /home/lucams/dev/spark_nifi_jupiter/data/postgres:/var/lib/postgresql/data
+
+volumes:
+  spark_worker_data:
+  spark_master_data:

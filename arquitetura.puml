@@ -1,0 +1,18 @@
+@startuml
+!define RECTANGLE class
+
+RECTANGLE "Jupyter Notebook" as Jupyter
+RECTANGLE "Apache NiFi" as NiFi
+RECTANGLE "Apache Kafka" as Kafka
+RECTANGLE "Apache Spark" as Spark
+RECTANGLE "PostgreSQL" as PostgreSQL
+
+Jupyter --> PostgreSQL : Consulta e Análise
+NiFi --> Kafka : Envia Dados de Vendas
+Kafka --> Spark : Consome Dados de Vendas
+Spark --> PostgreSQL : Insere Dados Processados
+
+database PostgreSQL {
+}
+
+@enduml

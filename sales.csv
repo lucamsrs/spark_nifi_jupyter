@@ -1,0 +1,6 @@
+order_id,customer_id,product,quantity,price,date
+1,1001,Widget A,10,9.99,2024-11-01
+2,1002,Widget B,5,19.99,2024-11-02
+3,1003,Widget C,2,29.99,2024-11-03
+4,1001,Widget A,7,9.99,2024-11-04
+5,1004,Widget D,3,49.99,2024-11-05
